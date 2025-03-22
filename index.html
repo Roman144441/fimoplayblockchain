@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Защищенный журнал оценок</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="shield-overlay" id="shield">
+        <div class="shield-content">
+            <h3>🔒 Проверка безопасности</h3>
+            <p id="captcha-text"></p>
+            <input type="text" id="captcha-input" placeholder="Введите ответ">
+            <button onclick="verifyCaptcha()">Подтвердить</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>📗 Журнал успеваемости</h1>
+        
+        <form id="gradeForm">
+            <div class="form-group">
+                <label>Ученик:</label>
+                <input type="text" id="name" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Предмет:</label>
+                <input type="text" id="subject" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Оценка:</label>
+                <input type="number" id="grade" min="1" max="5" required>
+            </div>
+            
+            <button type="submit">Добавить</button>
+        </form>
+
+        <div class="grades-list" id="gradesTable"></div>
+    </div>
+
+    <script>
+        let grades = JSON.parse(localStorage.getItem('grades')) || [];
+        let lastRequestTime = 0;
+        let captchaSolution = 0;
+
+        // Защита: лимит запросов и капча
+        document.getElementById('gradeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const now = Date.now();
+            if(now - lastRequestTime < 5000) { // 5 секунд между запросами
+                showCaptcha();
+                return;
+            }
+            
+            processRequest();
+        });
+
+        function processRequest() {
+            const newGrade = {
+                name: document.getElementById('name').value,
+                subject: document.getElementById('subject').value,
+                grade: document.getElementById('grade').value,
+                timestamp: new Date().toLocaleString()
+            };
+
+            grades.push(newGrade);
+            localStorage.setItem('grades', JSON.stringify(grades));
+            updateTable();
+            this.reset();
+            lastRequestTime = Date.now();
+        }
+
+        function showCaptcha() {
+            const a = Math.floor(Math.random() * 10);
+            const b = Math.floor(Math.random() * 10);
+            captchaSolution = a + b;
+            
+            document.getElementById('captcha-text').textContent = `${a} + ${b} = ?`;
+            document.getElementById('shield').style.display = 'flex';
+        }
+
+        function verifyCaptcha() {
+            const userAnswer = parseInt(document.getElementById('captcha-input').value);
+            
+            if(userAnswer === captchaSolution) {
+                document.getElementById('shield').style.display = 'none';
+                processRequest();
+            } else {
+                alert('Неверный ответ!');
+            }
+        }
+
+        function updateTable() {
+            const container = document.getElementById('gradesTable');
+            let html = grades.length ? `
+                <table>
+                    <tr><th>Ученик</th><th>Предмет</th><th>Оценка</th><th>Дата</th></tr>
+                    ${grades.map(g => `
+                        <tr>
+                            <td>${g.name}</td>
+                            <td>${g.subject}</td>
+                            <td>${g.grade}</td>
+                            <td>${g.timestamp}</td>
+                        </tr>
+                    `).join('')}
+                </table>
+            ` : '<p>Нет записей</p>';
+            
+            container.innerHTML = html;
+        }
+
+        updateTable();
+    </script>
+</body>
+</html>
